@@ -7,63 +7,40 @@ var request = require('request');
 app.use(bodyParser.urlencoded({ extended: false }));
 app.use(bodyParser.json());
 
-var StockAPI = "https://query.yahooapis.com/v1/public/yql?q=select%20*%20from%20yahoo.finance.quotes%20where%20symbol%20in%20(%22SAP%22)&format=json&env=store%3A%2F%2Fdatatables.org%2Falltableswithkeys&callback=";
+var StockAPI = "http://finance.google.com/finance/info?client=ig&q=ETR:sap";
 
 
 request(StockAPI, function (error, response, stockBody) {
       if (!error && response.statusCode == 200) {
-        var data = JSON.parse(stockBody);
-        var usdShare = data['query']['results']['quote']['Ask'];
-        var exchangeAPI = "http://api.fixer.io/latest?base=USD";
-        //this is like the worst hack ever
-        request(exchangeAPI, function (error, response, currencyBody) {
-            if (!error && response.statusCode == 200) {
-                var data = JSON.parse(currencyBody);
-                var eurValue = data['rates']['EUR'];
-                var value = usdShare * eurValue;
-                //bad code, thanks async 
-                var text = "SAP share price: "+value+" EUR";
-                console.log(text);
+        console.log(stockBody);
+        var data = stockBody.split('\n');
+        var lineOfConcern = data[6].split(":");
+        var shareValue = lineOfConcern[1].replace(/["]/g, "");
+        var text = "SAP Share Price : EUR" + shareValue;
+        if (shareValue > 95) {
+          var transporter = nodemailer.createTransport({
+              service: 'Gmail',
+              auth: {
+                  user: 'youremail@gmail.com', // Your email id
+                  pass: 'yourpassword' // Your password
+              }
+          });
+          var mailOptions = {
+              from: 'youremail@gmail.com',
+              to: 'youremail@gmail.com',
+              subject: 'SAP Share Price',
+              text: text
+          };
 
-                //had to nest
-                if(value > 95){
+          transporter.sendMail(mailOptions, function(error, info){
+              if(error){
+                  console.log(error);
 
-                var transporter = nodemailer.createTransport({
-                    service: 'Gmail',
-                    auth: {
-                        user: 'youremail@gmail.com', // Your email id
-                        pass: 'yourpassword' // Your password
-                    }
-                });
+              }else{
+                  console.log('Message sent: ' + info.response);
 
-                var mailOptions = {
-                    from: 'from@gmail.com',
-                    to: 'to@gmail.com',
-                    subject: 'Email Example',     
-                    text: text 
-                };
-
-                transporter.sendMail(mailOptions, function(error, info){
-                    if(error){
-                        console.log(error);
-                       
-                    }else{
-                        console.log('Message sent: ' + info.response);
-                        
-                    };
-                });
-
-
-                }
-
-            }
-        });
+              };
+          });
+        }
       }
 });
-
-
-
-   
-    
-
-
